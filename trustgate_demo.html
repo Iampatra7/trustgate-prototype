@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustGate | Frontline Border Screening Terminal</title>
+    <style>
+        :root {
+            --bg-base: #0b1120;
+            --bg-panel: #111827;
+            --border-color: #1e293b;
+            --text-main: #f9fafb;
+            --text-muted: #94a3b8;
+            --accent-teal: #14b8a6;
+            --status-pass: #10b981;
+            --status-warn: #f59e0b;
+            --status-fail: #ef4444;
+            --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+
+        .terminal-container {
+            display: grid;
+            grid-template-rows: 64px 44px 1fr 88px;
+            gap: 12px;
+            height: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        header {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .dept-badge {
+            background: rgba(20, 184, 166, 0.15);
+            color: var(--accent-teal);
+            border: 1px solid rgba(20, 184, 166, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+        }
+        .title-block h1 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .title-block p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .telemetry {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+        }
+        .runtime-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--status-pass);
+            background: rgba(16, 185, 129, 0.1);
+            padding: 4px 10px;
+            border-radius: 99px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        .pulse-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--status-pass);
+            box-shadow: 0 0 8px var(--status-pass);
+        }
+
+        .scenario-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+        .scenario-bar span { color: var(--text-muted); }
+        .scenario-btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .scenario-btn.active, .scenario-btn:hover {
+            background: var(--accent-teal);
+            color: #0b1120;
+            border-color: var(--accent-teal);
+            font-weight: 700;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 12px;
+            min-height: 0;
+        }
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+        .panel-head {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .id-card {
+            display: flex;
+            gap: 16px;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            align-items: center;
+        }
+        .photo-box {
+            width: 100px;
+            height: 120px;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            position: relative;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
+        .photo-box svg { width: 50px; height: 50px; fill: var(--text-muted); }
+        .photo-alert {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: var(--status-fail);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-align: center;
+            padding: 3px 0;
+            display: none;
+        }
+        .id-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+        .field-label { display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+        .field-val { font-weight: 700; color: var(--text-main); }
+
+        .ela-box {
+            border: 1px dashed var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+        .ela-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 700; color: var(--accent-teal); }
+        .ela-bar {
+            height: 36px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--status-pass);
+            color: var(--status-pass);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .mrz-block {
+            background: #000;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: #38bdf8;
+            letter-spacing: 1.2px;
+            line-height: 1.4;
+        }
+
+        .vector-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .vector-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0f172a;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            border: 1px solid var(--border-color);
+        }
+        .pill {
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+        .pill-pass { background: rgba(16, 185, 129, 0.15); color: var(--status-pass); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .pill-warn { background: rgba(245, 158, 11, 0.15); color: var(--status-warn); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .pill-fail { background: rgba(239, 68, 68, 0.15); color: var(--status-fail); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        .risk-gauge {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+        }
+        .risk-score { font-size: 1.5rem; font-weight: 800; color: var(--status-pass); }
+
+        footer {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .action-note { font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono); }
+        .btn-group { display: flex; gap: 12px; }
+        .btn-action {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 800;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: 0.2s;
+        }
+        .btn-clear { background: var(--status-pass); color: #022c22; }
+        .btn-sec { background: var(--status-warn); color: #451a03; }
+        .btn-esc { background: var(--status-fail); color: #450a0a; }
+        .btn-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            border-radius: 8px;
+            width: 480px;
+            font-family: var(--font-mono);
+        }
+        .modal-card h3 { font-size: 1.1rem; margin-bottom: 12px; }
+        .hash-view {
+            background: #000;
+            color: var(--accent-teal);
+            font-size: 0.7rem;
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="terminal-container">
+    <header>
+        <div class="header-brand">
+            <span class="dept-badge">SSB</span>
+            <div class="title-block">
+                <h1>TRUSTGATE FRONTLINE TERMINAL</h1>
+                <p>MHA PS ID: 26188 · Police II Division</p>
+            </div>
+        </div>
+        <div class="telemetry">
+            <span>CHECKPOINT: <strong>ICP-04 (Raxaul)</strong></span>
+            <div class="runtime-status">
+                <div class="pulse-dot"></div>
+                <span>OFFLINE RUNTIME ACTIVE</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="scenario-bar">
+        <span>DEMO PERSONA INJECTION:</span>
+        <button class="scenario-btn active" onclick="loadPersona('clean', event)">01 · AUTHENTIC TRAVELER</button>
+        <button class="scenario-btn" onclick="loadPersona('tampered', event)">02 · SPLICED PHOTO FORGERY</button>
+        <button class="scenario-btn" onclick="loadPersona('spoof', event)">03 · BIOMETRIC SPOOF / WATCHLIST</button>
+    </div>
+
+    <main>
+        <div class="panel">
+            <div class="panel-head">
+                <span>Scanned Travel Document</span>
+                <span>ICAO TD-3 PASSPORT</span>
+            </div>
+            
+            <div class="id-card">
+                <div class="photo-box" id="photoBox">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    <div class="photo-alert" id="photoAlert">PATCH DETECTED</div>
+                </div>
+                <div class="id-details">
+                    <div><span class="field-label">Full Name</span><span class="field-val" id="name">JOHN DOE</span></div>
+                    <div><span class="field-label">Date of Birth</span><span class="field-val" id="dob">12/05/1988</span></div>
+                    <div><span class="field-label">Document ID</span><span class="field-val" id="docId">P1234567</span></div>
+                    <div><span class="field-label">Nationality</span><span class="field-val" id="nat">IND</span></div>
+                </div>
+            </div>
+
+            <div class="ela-box">
+                <div class="ela-header">
+                    <span>ERROR LEVEL ANALYSIS (ELA)</span>
+                    <span id="elaScore">94% UNIFORM</span>
+                </div>
+                <div class="ela-bar" id="elaBar">Uniform Noise Residuals Verified</div>
+            </div>
+
+            <div class="mrz-block" id="mrzBlock">
+                P&lt;INDDOE&lt;&lt;JOHN&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br>
+                P1234567&lt;4IND8805128M2805120&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;02
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head">
+                <span>Real-Time Risk Evidence Vector</span>
+                <span>INFERENCE: ~3.2s (EDGE JETSON)</span>
+            </div>
+
+            <div class="vector-list">
+                <div class="vector-row">
+                    <span>Document Validity (Format Check)</span>
+                    <span class="pill pill-pass" id="v1">PASS</span>
+                </div>
+                <div class="vector-row">
+                    <span>MRZ Checksum (7-3-1 Weight)</span>
+                    <span class="pill pill-pass" id="v2">PASS</span>
+                </div>
+                <div class="vector-row">
+                    <span>ELA Splice Integrity</span>
+                    <span class="pill pill-pass" id="v3">94% (CLEAN)</span>
+                </div>
+                <div class="vector-row">
+                    <span>Font Stroke & Stamp Geometry</span>
+                    <span class="pill pill-pass" id="v4">PASS</span>
+                </div>
+                <div class="vector-row">
+                    <span>1:1 ArcFace Similarity Match</span>
+                    <span class="pill pill-pass" id="v5">96% MATCH</span>
+                </div>
+                <div class="vector-row">
+                    <span>Passive Liveness Anti-Spoof</span>
+                    <span class="pill pill-pass" id="v6">CONFIRMED</span>
+                </div>
+                <div class="vector-row">
+                    <span>Local Encrypted Watchlist Delta</span>
+                    <span class="pill pill-pass" id="v7">NO MATCH</span>
+                </div>
+            </div>
+
+            <div class="risk-gauge">
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">EXPLAINABLE RISK SCORE</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);" id="riskNote">Human sign-off required</div>
+                </div>
+                <div class="risk-score" id="riskScore">08 / 100</div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="action-note">
+            OFFICER DECISION SUPPORT: <strong>Select Action to Sign & Record Event to Local Queue</strong>
+        </div>
+        <div class="btn-group">
+            <button class="btn-action btn-clear" onclick="openDecision('CLEAR')">CLEAR</button>
+            <button class="btn-action btn-sec" onclick="openDecision('SECONDARY INSPECTION')">SECONDARY</button>
+            <button class="btn-action btn-esc" onclick="openDecision('ESCALATE')">ESCALATE</button>
+        </div>
+    </footer>
+</div>
+
+<div class="modal" id="auditModal">
+    <div class="modal-card">
+        <h3 id="modalTitle">DECISION LOGGED</h3>
+        <p style="font-size:0.75rem; color:var(--text-muted);">
+            Transaction cryptographic digest signed by Officer SSB-INSP-4029. Event recorded to local TPM buffer.
+        </p>
+        <div class="hash-view" id="modalHash"></div>
+        <p style="font-size:0.7rem; color:var(--text-muted); margin-bottom: 12px;">
+            Asynchronous ledger sync will occur upon network connectivity restoration.
+        </p>
+        <button class="btn-action btn-clear" style="width:100%;" onclick="closeDecision()">OK (CONTINUE)</button>
+    </div>
+</div>
+
+<script>
+    const personas = {
+        clean: {
+            name: "JOHN DOE", dob: "12/05/1988", doc: "P1234567", nat: "IND",
+            alert: false,
+            elaScore: "94% UNIFORM",
+            elaBar: "Uniform Noise Residuals Verified",
+            elaColor: "var(--status-pass)",
+            elaBg: "rgba(16, 185, 129, 0.15)",
+            risk: "08 / 100", riskColor: "var(--status-pass)",
+            pills: [
+                ["PASS", "pill-pass"], ["PASS", "pill-pass"], ["94% (CLEAN)", "pill-pass"],
+                ["PASS", "pill-pass"], ["96% MATCH", "pill-pass"], ["CONFIRMED", "pill-pass"],
+                ["NO MATCH", "pill-pass"]
+            ]
+        },
+        tampered: {
+            name: "RAJESH SHARMA", dob: "21/08/1992", doc: "K8920194", nat: "IND",
+            alert: true,
+            elaScore: "31% ANOMALY",
+            elaBar: "Compression Discrepancy Around Photo Perimeter",
+            elaColor: "var(--status-fail)",
+            elaBg: "rgba(239, 68, 68, 0.15)",
+            risk: "74 / 100", riskColor: "var(--status-warn)",
+            pills: [
+                ["PASS", "pill-pass"], ["PASS", "pill-pass"], ["31% (SPLICED)", "pill-fail"],
+                ["MODIFIED", "pill-warn"], ["92% MATCH", "pill-pass"], ["CONFIRMED", "pill-pass"],
+                ["NO MATCH", "pill-pass"]
+            ]
+        },
+        spoof: {
+            name: "AMIT VERMA", dob: "04/11/1985", doc: "N7710294", nat: "IND",
+            alert: false,
+            elaScore: "88% UNIFORM",
+            elaBar: "Document Surface Physical Texture Clean",
+            elaColor: "var(--status-pass)",
+            elaBg: "rgba(16, 185, 129, 0.15)",
+            risk: "95 / 100", riskColor: "var(--status-fail)",
+            pills: [
+                ["PASS", "pill-pass"], ["PASS", "pill-pass"], ["88% (CLEAN)", "pill-pass"],
+                ["PASS", "pill-pass"], ["42% MISMATCH", "pill-fail"], ["REPLAY DETECTED", "pill-fail"],
+                ["WATCHLIST HIT · DEL-09", "pill-fail"]
+            ]
+        }
+    };
+
+    function loadPersona(type, evt) {
+        document.querySelectorAll('.scenario-btn').forEach(btn => btn.classList.remove('active'));
+        evt.currentTarget.classList.add('active');
+
+        const p = personas[type];
+        document.getElementById('name').textContent = p.name;
+        document.getElementById('dob').textContent = p.dob;
+        document.getElementById('docId').textContent = p.doc;
+        document.getElementById('nat').textContent = p.nat;
+
+        document.getElementById('photoAlert').style.display = p.alert ? 'block' : 'none';
+        document.getElementById('photoBox').style.borderColor = p.alert ? 'var(--status-fail)' : 'var(--border-color)';
+
+        document.getElementById('elaScore').textContent = p.elaScore;
+        const elaBar = document.getElementById('elaBar');
+        elaBar.textContent = p.elaBar;
+        elaBar.style.color = p.elaColor;
+        elaBar.style.borderColor = p.elaColor;
+        elaBar.style.backgroundColor = p.elaBg;
+
+        document.getElementById('riskScore').textContent = p.risk;
+        document.getElementById('riskScore').style.color = p.riskColor;
+
+        p.pills.forEach((val, idx) => {
+            const pillEl = document.getElementById(`v${idx+1}`);
+            pillEl.textContent = val[0];
+            pillEl.className = `pill ${val[1]}`;
+        });
+    }
+
+    function openDecision(action) {
+        const hash = "SHA256:" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+        document.getElementById('modalTitle').textContent = `DECISION LOGGED: [ ${action} ]`;
+        document.getElementById('modalHash').textContent = hash;
+        document.getElementById('auditModal').style.display = 'flex';
+    }
+
+    function closeDecision() {
+        document.getElementById('auditModal').style.display = 'none';
+    }
+</script>
+</body>
+</html>
